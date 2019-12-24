@@ -1,0 +1,12 @@
+*.swp
+
+.vscode
+dist
+terraform
+terraform-provider-expensify
+*.tfvars
+crash.log
+/*.tf
+expensify_template.ftl
+terraform.*
+.terraform
