@@ -46,7 +46,8 @@ ${reports?size}<#lt>
 
 func resourceReport() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: resourceReportRead,
+		ReadContext:   resourceReportRead,
+		CreateContext: resourceReportCreate,
 		Delete: func(*schema.ResourceData, interface{}) error {
 			return fmt.Errorf("delete of expense reports is not supported in the API")
 		},
@@ -200,5 +201,38 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 		return fromErr(err)
 	}
 
+	return nil
+}
+
+func expensesFromSchema(sexpenses []interface{}) []sdk.Expense {
+	expenses := make([]sdk.Expense, 0, len(sexpenses))
+	for _, se := range sexpenses {
+		sem := se.(map[string]interface{})
+		expenses = append(expenses, sdk.Expense{
+			Merchant: sem["merchant"].(string),
+			Amount:   sem["amount_cents"].(int),
+			Currency: sem["currency"].(string),
+			Date:     sem["date"].(string),
+		})
+	}
+	return expenses
+}
+
+func resourceReportCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	c := meta.(*sdk.Client)
+
+	email := d.Get("email").(string)
+	title := d.Get("title").(string)
+	policyID := d.Get("policy_id").(string)
+	expenses := expensesFromSchema(d.Get("expense").([]interface{}))
+
+	id, err := c.Report(ctx, email, policyID, sdk.Report{
+		Title: title,
+	}, expenses)
+	if err != nil {
+		return fromErr(err)
+	}
+
+	d.SetId(id)
 	return nil
 }

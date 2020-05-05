@@ -18,11 +18,13 @@ type InputSettingsFilters struct {
 	ReportIDList string `json:"reportIDList,omitempty"`
 }
 
+// TODO: move this just in to the func
 type InputSettings struct {
 	Type    string               `json:"type"`
 	Filters InputSettingsFilters `json:"filters"`
 }
 
+// TODO: move this just in to the func
 type OutputSettings struct {
 	FileExtension string `json:"fileExtension"`
 }
