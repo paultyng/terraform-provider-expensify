@@ -3,10 +3,10 @@ package provider
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/paultyng/terraform-provider-expensify/internal/sdk"
 )
 
 func Provider() *schema.Provider {
@@ -41,19 +41,13 @@ func configure(p *schema.Provider) schema.ConfigureFunc {
 	return func(d *schema.ResourceData) (interface{}, error) {
 		userID := d.Get("partner_user_id").(string)
 		userSecret := d.Get("partner_user_secret").(string)
-		serverURL, err := url.Parse(d.Get("server_url").(string))
+		serverURL := d.Get("server_url").(string)
+
+		c, err := sdk.New(userID, userSecret, serverURL, &http.Client{
+			Transport: logging.NewTransport("expensify", http.DefaultTransport),
+		})
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse URL: %w", err)
-		}
-
-		c := &client{
-			userID:     userID,
-			userSecret: userSecret,
-			serverURL:  serverURL,
-
-			c: &http.Client{
-				Transport: logging.NewTransport("expensify", http.DefaultTransport),
-			},
+			return nil, fmt.Errorf("unable to create SDK client: %w", err)
 		}
 
 		return c, nil

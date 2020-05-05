@@ -10,9 +10,17 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/paultyng/terraform-provider-expensify/internal/sdk"
 )
 
-const reportExportTemplate = `<#list reports as report>
+const reportExportTemplate = `
+${reports?size}<#lt>
+<#list reports as report>
+	${report.transactionList?size},<#t>
+	${report.accountEmail},<#t>
+	${report.reportName},<#t>
+	${report.policyID}<#lt>
     <#list report.transactionList as expense>
         <#if expense.modifiedMerchant?has_content>
             <#assign merchant = expense.modifiedMerchant>
@@ -46,6 +54,21 @@ func resourceReport() *schema.Resource {
 			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
+			"email": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"title": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"policy_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
 			"expense": {
 				Type:     schema.TypeList,
 				Required: true,
@@ -61,7 +84,7 @@ func resourceReport() *schema.Resource {
 							Type:     schema.TypeString,
 							Required: true,
 						},
-						"amount": {
+						"amount_cents": {
 							Type:     schema.TypeInt,
 							Required: true,
 						},
@@ -78,21 +101,21 @@ func resourceReport() *schema.Resource {
 }
 
 func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*client)
+	c := meta.(*sdk.Client)
 
 	id := d.Id()
 
-	file, err := c.File(ctx, FileRequest{
-		OnReceive: OnReceive{
+	file, err := c.File(ctx, sdk.FileRequest{
+		OnReceive: sdk.OnReceive{
 			ImmediateResponse: []string{"returnRandomFileName"},
 		},
-		InputSettings: InputSettings{
+		InputSettings: sdk.InputSettings{
 			Type: "combinedReportData",
-			Filters: InputSettingsFilters{
+			Filters: sdk.InputSettingsFilters{
 				ReportIDList: id,
 			},
 		},
-		OutputSettings: OutputSettings{
+		OutputSettings: sdk.OutputSettings{
 			FileExtension: "txt",
 		},
 	}, reportExportTemplate)
@@ -108,8 +131,47 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 
 	expenses := []interface{}{}
 	r := csv.NewReader(strings.NewReader(textData))
+	r.FieldsPerRecord = 1
+
+	// read report size (should be 1)
+	record, err := r.Read()
+	if err != nil {
+		panic(err)
+	}
+	numReports, err := strconv.Atoi(record[0])
+	if err != nil {
+		panic(err)
+	}
+	if numReports > 1 {
+		panic("expected 1 report, got %d")
+	}
+	if numReports == 0 {
+		// not found
+		d.SetId("")
+		return nil
+	}
+
+	r.FieldsPerRecord = 4
+	// read report header (1 row)
+	record, err = r.Read()
+	if err != nil {
+		panic(err)
+	}
+	numExpenses, err := strconv.Atoi(record[0])
+	if err != nil {
+		panic(err)
+	}
+	email := record[1]
+	title := record[2]
+	policyID := record[3]
+
+	d.Set("email", email)
+	d.Set("title", title)
+	d.Set("policy_id", policyID)
+
 	for {
-		record, err := r.Read()
+		r.FieldsPerRecord = 4
+		record, err = r.Read()
 		if err == io.EOF {
 			break
 		}
@@ -123,11 +185,15 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 		}
 
 		expenses = append(expenses, map[string]interface{}{
-			"merchant": record[0],
-			"amount":   amount,
-			"currency": record[2],
-			"date":     record[3],
+			"merchant":     record[0],
+			"amount_cents": amount,
+			"currency":     record[2],
+			"date":         record[3],
 		})
+	}
+
+	if numExpenses != len(expenses) {
+		panic("mismatch in expenses length")
 	}
 
 	err = d.Set("expense", expenses)
