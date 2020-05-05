@@ -36,9 +36,11 @@ type FileRequest struct {
 }
 
 func (c *Client) File(ctx context.Context, fileReq FileRequest, template string) (string, error) {
+
 	reqStructure := struct {
 		requestJobDescription
 		FileRequest
+		Test bool `json:"test"`
 	}{
 		requestJobDescription: requestJobDescription{
 			Type: "file",
@@ -48,6 +50,7 @@ func (c *Client) File(ctx context.Context, fileReq FileRequest, template string)
 			},
 		},
 		FileRequest: fileReq,
+		Test:        true,
 	}
 	reqJSON, err := json.Marshal(reqStructure)
 	if err != nil {
