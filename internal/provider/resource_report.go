@@ -120,13 +120,12 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 		},
 	}, reportExportTemplate)
 	if err != nil {
-		//return fmt.Errorf("")
-		panic(err)
+		return fromErr(err)
 	}
 
 	textData, err := c.Download(ctx, file, "")
 	if err != nil {
-		panic(err)
+		return fromErr(err)
 	}
 
 	expenses := []interface{}{}
@@ -136,14 +135,14 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 	// read report size (should be 1)
 	record, err := r.Read()
 	if err != nil {
-		panic(err)
+		return fromErr(err)
 	}
 	numReports, err := strconv.Atoi(record[0])
 	if err != nil {
-		panic(err)
+		return fromErr(err)
 	}
 	if numReports > 1 {
-		panic("expected 1 report, got %d")
+		return errorf("expected 1 report, got %d", numReports)
 	}
 	if numReports == 0 {
 		// not found
@@ -155,11 +154,11 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 	// read report header (1 row)
 	record, err = r.Read()
 	if err != nil {
-		panic(err)
+		return diag.Diagnostics{diag.FromErr(err)}
 	}
 	numExpenses, err := strconv.Atoi(record[0])
 	if err != nil {
-		panic(err)
+		return diag.Diagnostics{diag.FromErr(err)}
 	}
 	email := record[1]
 	title := record[2]
@@ -176,12 +175,12 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 			break
 		}
 		if err != nil {
-			panic(err)
+			return diag.Diagnostics{diag.FromErr(err)}
 		}
 
 		amount, err := strconv.Atoi(record[1])
 		if err != nil {
-			panic(err)
+			return diag.Diagnostics{diag.FromErr(err)}
 		}
 
 		expenses = append(expenses, map[string]interface{}{
@@ -193,12 +192,12 @@ func resourceReportRead(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	if numExpenses != len(expenses) {
-		panic("mismatch in expenses length")
+		return errorf("expected %d expenses, got %d", numExpenses, len(expenses))
 	}
 
 	err = d.Set("expense", expenses)
 	if err != nil {
-		panic(err)
+		return fromErr(err)
 	}
 
 	return nil

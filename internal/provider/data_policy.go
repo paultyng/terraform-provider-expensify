@@ -26,7 +26,7 @@ func dataPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	policies, err := c.PolicyList(ctx)
 	if err != nil {
-		panic(err)
+		return fromErr(err)
 	}
 
 	var policy *sdk.Policy
@@ -38,7 +38,7 @@ func dataPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		break
 	}
 	if policy == nil {
-		panic("not found")
+		return errorf("not found")
 	}
 
 	d.SetId(policy.ID)

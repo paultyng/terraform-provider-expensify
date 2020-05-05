@@ -1,9 +1,10 @@
 package provider
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/paultyng/terraform-provider-expensify/internal/sdk"
@@ -35,12 +36,12 @@ func Provider() *schema.Provider {
 			"expensify_report": resourceReport(),
 		},
 	}
-	p.ConfigureFunc = configure(p)
+	p.ConfigureContextFunc = configure(p)
 	return p
 }
 
-func configure(p *schema.Provider) schema.ConfigureFunc {
-	return func(d *schema.ResourceData) (interface{}, error) {
+func configure(p *schema.Provider) schema.ConfigureContextFunc {
+	return func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		userID := d.Get("partner_user_id").(string)
 		userSecret := d.Get("partner_user_secret").(string)
 		serverURL := d.Get("server_url").(string)
@@ -49,7 +50,7 @@ func configure(p *schema.Provider) schema.ConfigureFunc {
 			Transport: logging.NewTransport("expensify", http.DefaultTransport),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("unable to create SDK client: %w", err)
+			return nil, fromErr(err)
 		}
 
 		return c, nil
