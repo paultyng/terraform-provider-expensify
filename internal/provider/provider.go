@@ -28,7 +28,9 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("EXPENSIFY_SERVER", "https://integrations.expensify.com"),
 			},
 		},
-		DataSourcesMap: map[string]*schema.Resource{},
+		DataSourcesMap: map[string]*schema.Resource{
+			"expensify_policy": dataPolicy(),
+		},
 		ResourcesMap: map[string]*schema.Resource{
 			"expensify_report": resourceReport(),
 		},
