@@ -1,5 +1,5 @@
 
-NAME=terraform-provider-unifi
+NAME=terraform-provider-expensify
 PLUGIN_PATH=$(HOME)/.terraform.d/plugins
 
 all: build
